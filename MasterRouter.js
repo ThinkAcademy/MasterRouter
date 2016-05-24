@@ -1,38 +1,156 @@
+// A simple Routing plugin for the MasterControl JAVSCRIPT framework by Alexander Think - MIT Licensed
+// version 1.1 currently on works with HTML 5 browsers using history.js plugin
+//https://github.com/browserstate/history.js/
 
-// A simple Routing plugin for the MasterControl JAVSCRIPT framework by Alexander Think - MIT Licensed - ThinkAcademy.io
-// version 1
+// TODO: Check to see if user has declaired same controller name and same action name using html so that there is no double call
 
-var MasterRouter = function (module) {
+(function ( window, undefined) {
 
-	var module = module;
+    var Router = function(app){
 
-	var init = function (module) {
+        this.$$routingList = [];
+        // check to see if master control is installed
+    	this.init = function () {
 
-        // select all controllers with name routing inside of the main app
-        var routingController = module.querySelector("[fan-controller='routing']");
+                var APPmodule = document.querySelector("[fan-routing-view]");
 
-        if(routingController !== null){
-            var routingAction = routingController.querySelector("[fan-action='routing']");
+                if(APPmodule !== null){
 
-            // get url 
-            var urlArray = window.location.pathname.split("/");
-            var controller = urlArray[1];
-            var action = urlArray[2];
+                    var urlArray = window.location.pathname.split("/");
+                    var controller = urlArray[1];
+                    var action = urlArray[2];
 
-            routingController.setAttribute("fan-controller", controller);
+                    if(action == '' || action == undefined){
+                        action = "index";
+                    }
 
-            if(action === ""){
-            	routingAction.setAttribute("fan-action", "index");
-        	}
-        	else{
-        		routingAction.setAttribute("fan-action", action);
-        	}
-        }
-	};
+                    if($$routingList.length > -1){
 
-	init(module);
+                        var calledController = false;
+                        var calledAction = false;
 
-}
+                        for(var r = 0; $$routingList.length > r; r++ ){
+                                // reset the url if slash or empty same thing
+                                if($$routingList[r].controllerURL === "/"){
+                                    $$routingList[r].controllerURL = "";
+                                }
+
+                                if($$routingList[r].actionURL === ""){
+                                    $$routingList[r].actionURL = "index";
+                                }
+
+                                if($$routingList[r].controllerURL === controller){
+                                        calledController = true;
+                                        // CALL MASTERCONTROLLER CONTROLLER WITH SAME NAME
+                                        var error404MSG = app.callController($$routingList[r].controller, APPmodule);
+                                        // if error message is 404 not found
+                                        if(error404MSG != null){
+                                                  // then call 404Error controller in master controller
+                                                var errorMSG = app.callController("error404", APPmodule);
+                                                if(errorMSG != null){
+                                                    var errorMessage = "Error cannot find controller with name error404. please make an error controller to continue";
+                                                    throw new Error(errorMessage);
+                                                }
+                                        }
+                                        else{
+                                            
+                                            if($$routingList[r].actionURL === action){
+                                                    app.callAction($$routingList[r].action, $$routingList[r].controller, APPmodule);
+                                                    calledAction = true;
+                                            }
+                                        }
+                                }    
+
+                        }
+
+                        if(calledController === false){
+                            // CALL MASTERCONTROLLER CONTROLLER WITH SAME NAME
+                            if(!controller){
+                                var errorMessage = "Error controller is blank or couldn't find route with empty name";
+                                throw new Error(errorMessage);
+                            }
+                            else{
+
+                                var error404MSG = app.callController(controller, APPmodule);
+
+                                if(error404MSG != null){
+                                    // then call 404Error controller in master controller
+                                    var errorMSG = app.callController("error404", APPmodule);
+                                    if(errorMSG != null){
+                                        var errorMessage = "Error cannot find controller with name error404. please make one to continue";
+                                        throw new Error(errorMessage);
+                                    }
+
+                                }
+                                else{
+                                    if(calledAction === false){
+                                        app.callAction(action, controller, APPmodule);
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
+                    else{
+                            if(!controller){
+                                var errorMessage = "Error controller is blank or couldn't find route with empty name";
+                                throw new Error(errorMessage);
+                            }
+                            else{
+                                                // CALL MASTERCONTROLLER CONTROLLER WITH SAME NAME
+                                var error404MSG = app.callController(controller, APPmodule);
+
+                                if(error404MSG != null){
+                                    // then call 404Error controller in master controller
+                                    var errorMSG = app.callController("error404", APPmodule);
+                                    if(errorMSG != null){
+                                        var errorMessage = "Error cannot find controller with name error404. please make one to continue";
+                                        throw new Error(errorMessage);
+                                    }
+                                }
+                                else{
+                                    app.callAction(action, controller, APPmodule);
+                                }
+                            }
+                    }
+                }
+            }
+
+
+            return{
+                routeTo: function(controllerURL, actionURL, controller, action){
+                    
+                    var routing = {
+                        controllerURL: controllerURL,
+                        actionURL: actionURL,
+                        controller: controller,
+                        action: action
+                    }
+
+                    $$routingList.push(routing );
+                    return this
+
+                },
+
+                start:function(){
+                    if (typeof app == "object") {
+                            init();
+                        }
+                        else{
+                            throw new Error("Master Control plugin needs to be installed first");
+
+                    }
+                    return this
+                }
+
+            }
+
+        };
+
+        window.MasterRouter = Router;
+})(window);
+
 
 
 
@@ -40,20 +158,52 @@ var MasterRouter = function (module) {
 /******************************************* GETTING STARTED ROUTING YOUR APPLICATION *******************************************/
 /********************************************************************************************************************************/
 
-// This will get replaced with the controller and action url names
+/*
+    We add fan-routing-view to the app declaration then on page load we read the url and parse out controller and action
+    we then call those functions controller and action using Master controller plugin
+*/
 
-// declare a routing Controller in HTML
+// setup server to foward all incoming calls to your index.html page so that routing can be handled by master router
+
+// declare master router inside master controller module
 // EXAMPLE:
-// fan-controller='routing'
+/*
 
-// declare a routing Action in HTML inside of controller
-// EXAMPLE:
-// fan-action='routing'
+var app = MasterControl();
 
-// FIX ROUTING ISSUES
-// If there is no controller or action then the controller gets replaced with / and action is index
-// If there is only a controller and no action then the controller gets called by it's name and the action is index
+app.module("myapp", function(scope){
 
-// QUESTION: What if there is a controller and then there's an ID but not an action? 
-// ANSWER: If we declare our controller function name with - for examaple : "controllerName:id" 
-// what that means is that if we can't find that action don't send error it just means that action is an id
+    // delaire your MasterRouter and setup routes and then start the routing
+    MasterRouter(app).routeTo("/", "", "home", "index").start();
+
+}
+*/
+
+// declare master router in HTML page
+
+// add fan-routing-view to div you want to be the master container
+// example 
+/*
+<body class="" fan-app="myapp" fan-routing-view>
+</body>
+
+*/
+
+/*
+    IF NO CONTOLLER IS FOUND: error404:
+    if Master Router cannot find a controller with the URL name then it will defualt to calling "error404" controler name so you must declare a error404 contoller using MasterController plugin
+
+
+*/
+
+
+/* 
+
+TO CONCLUDE:
+ So when you visit a URL master controller will pick that url up and call the contoller and action associated with that name
+FOR EXAMPLE: 
+    URL: WWW.myapp.com/login
+
+Master Router will call the controller with name login and since  there is no action name it will use index as the default action name by calling index action
+
+*/
